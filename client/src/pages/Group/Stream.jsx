@@ -15,7 +15,7 @@ const Stream = () => {
     const queryParams = new URLSearchParams(location.search);
     const userName = queryParams.get('username');
     const [otherUser, setOtherUser] = useState([]);
-    console.log(otherUser);
+    const [myStream, setMyStream] = useState();
     
     useEffect(()=>{
         if(userName===""){
@@ -28,20 +28,39 @@ const Stream = () => {
         const { email, room } = data;
     }, []);
 
-    const addUser= useCallback((userID, connectionID)=>{
-        setOtherUser(prev=> [...prev, {userID, connectionID}])
+    const sendStreams = useCallback((stream) => {
+        for (const track of stream.getTracks()) {
+            peer.addTrack(track, stream);
+        }
+    }, []);
+
+    const addUser= useCallback((userName, connectionID)=>{
+        setOtherUser(prev=> [...prev, {userName, connectionID}]);
+        
     }, [setOtherUser])
 
     const newConnectionInformation= useCallback( (data)=>{
         setOtherUser([]);
         for (let i = 0; i < data.length; i++) {
-            const userID = data[i].user_id;
+            const userName = data[i].userName;
             const connectionID = data[i].connectionID;
-            addUser(userID, connectionID);
+            addUser(userName, connectionID);
         }
     }, [addUser])
 
-
+    const processMedia = async()=>{
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: true,
+                video: true,
+            });
+            setMyStream(stream);
+            sendStreams(stream);
+            // return stream;
+        } catch (error) {
+            console.error("Error accessing media devices:", error);
+        }
+    }
     let localConnectionID;
     useEffect(() => {
         socket.on("connect", ()=>{
@@ -49,44 +68,47 @@ const Stream = () => {
                 userName: userName,
                 meetingID : meetingID
             });
+            processMedia();
         });
         // localConnectionID= socket.id;
+        
 
         socket.on("newConnectionInformation", data=>{newConnectionInformation(data);})
 
-        socket.on("other-user-inform", data=>{addUser(data.otherUsersID, data.connectionID)})
+        socket.on("other-user-inform", data=>{
+            addUser(data.otherUsersID, data.connectionID)
+        })
         return () => {
             socket.off("room-join")
             socket.off("newConnectionInformation", data=>{newConnectionInformation(data);})
             socket.off("other-user-inform", data=>{addUser(data.otherUsersID, data.connectionID)})
         };
-    }, [socket, newConnectionInformation, addUser]);
+    }, [socket, newConnectionInformation]);
+
     return (
-        <div>
-            Stream
+        <div className='max-w-7xl mx-auto h-screen py-10 px-6'>
             <h1 className='text-center capitalize text-[#0071E3] text-[18px] font-medium'>
                 { 
-                    userName && userName
+                    userName && "User Name:- "+ userName   
                 }
                 
             </h1>
-            <div className='border border-red-300 h-[500px]'>
-            {
-                otherUser?.map((data, index)=>{
-                    <div key={index} className='border border-red-300 w-10 h-10'>
-                        <h1>{data?.userID}</h1>
-                        <h1>{data?.connectionID}</h1>
-                        <ReactPlayer
-                            playing
-                            muted
-                            height="100px"
-                            width="200px"
-                            // url="https://www.youtube.com/watch?v=IAvw60x0Kn4&list=RDIAvw60x0Kn4&start_radio=1"
-                        />
-                                </div>
-                
-                })
-            }
+            <h3>{otherUser?.length}</h3>
+            <div className='grid grid-cols-2 gap-10'>
+                {
+                    otherUser?.map((data, index)=>
+                        <div key={index} className='shadow-2xl rounded-md  pb-[20px] px-5 '>
+                            <h1 className='text-center mb-2 capitalize text-[#0071E3] text-[18px] font-medium'>{data?.userName}</h1>
+                            <ReactPlayer
+                                playing
+                                muted
+                                height="300px"
+                                width="100%"
+                                url="https://www.youtube.com/watch?v=rePN-VFo1Eo&list=PLHiZ4m8vCp9OkrURufHpGUUTBjJhO9Ghy"
+                            />
+                        </div>
+                    )
+                }
             </div>
             {/* <ReactPlayer
                 playing

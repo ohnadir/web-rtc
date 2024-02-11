@@ -21,18 +21,15 @@ io.on("connection", (socket) => {
     console.log(`Socket Connected`, socket.id);
     socket.on("user_info_to_singnaling_server", (data)=>{
         const {userName, meetingID} = data;
-        const otherUsers = userCollection.filter(p => p.meetingID !== meetingID);
-        const isUserExist = userCollection.find(p => p.user_id === userName);
+        const isUserExist = userCollection.find(p => p.userName === userName);
+        const otherUsers = userCollection.filter(p => p.userName !== userName);
         if (!isUserExist) {
             userCollection.push({
                 connectionID : socket.id,
-                user_id: userName,
+                userName: userName,
                 meetingID: meetingID
             });
         }
-        
-        console.log("all user" + userCollection);
-        console.log("others user" + otherUsers);
         
         otherUsers.forEach(v=>{
             socket.to(v.connectionID).emit('other-user-inform', {
@@ -40,7 +37,6 @@ io.on("connection", (socket) => {
                 connectionID: socket.id
             });
         });
-
         socket.emit("newConnectionInformation", otherUsers);
     })
 
